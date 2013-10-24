@@ -1,4 +1,5 @@
 
+
 /*-------------------------------------------------------------------- 
  * JQuery Plugin: "EqualHeights" & "EqualWidths"
  * by:	Scott Jehl, Todd Parker, Maggie Costello Wachs (http://www.filamentgroup.com)
@@ -26,8 +27,44 @@ $.fn.equalHeights = function(o) {
 	var px = o.px || false
 		,childrenSelector = o.childrenSelector || '> *'
 		,perRow = (o.perRow === undefined) ? true : o.perRow
+		,processRow
 		;
 		
+	processRow = function($children) {
+		
+		currentTallest = 0;
+		
+		// To be able to call this function on window resize need to reset the heights first
+		// for ie6, set height since min-height isn't supported
+		if ($.browser.msie && $.browser.version == 6.0) {
+			$children.css({'height': 'auto'});
+		}
+		
+		$children.css({'min-height': 0}); 
+		
+		$children.each(function(){
+			var $child = $(this);
+			if ($child.height() > currentTallest) {
+				currentTallest = $child.height();
+			}
+		});
+		
+		// Fix issue in Firefox (affected v19) where it didn't always reflow floats back over to the left
+		currentTallest += 1;
+		
+		if (!px && Number.prototype.pxToEm) {
+			currentTallest = currentTallest.pxToEm(); //use ems unless px is specified
+		}
+		
+		// for ie6, set height since min-height isn't supported
+		if ($.browser.msie && $.browser.version == 6.0) {
+			$children.css({'height': currentTallest});
+		}
+		
+		$children.css({'min-height': currentTallest});
+		 
+	};
+	
 	$(this).each(function(){
 		
 		var currentTallest
@@ -42,54 +79,22 @@ $.fn.equalHeights = function(o) {
 			$children.each(function() {
 				var $this = $(this);
 				if ($this.position().top > currentPositionTop) {
+					if (rows.length > 0) {
+						// Do row
+						processRow(rows[rows.length - 1]);
+					}
 					currentPositionTop = $this.position().top;
 					rows[rows.length] = $();
 				}
 				rows[rows.length - 1] = rows[rows.length - 1].add($this);
 			});
+			
+			// Do row
+			processRow(rows[rows.length - 1]);
 					
 		}
 		else {
-			rows = [$children];
-		}
-		
-		rowsLength = rows.length;
-		
-		for (i = 0; i < rowsLength; i++) {
-			
-			currentTallest = 0;
-			
-			$children = rows[i];
-			
-			// To be able to call this function on window resize need to reset the heights first
-			// for ie6, set height since min-height isn't supported
-			if ($.browser.msie && $.browser.version == 6.0) {
-				$children.css({'height': 'auto'});
-			}
-			
-			$children.css({'min-height': 0}); 
-			
-			$children.each(function(){
-				var $child = $(this);
-				if ($child.height() > currentTallest) {
-					currentTallest = $child.height();
-				}
-			});
-			
-			// Fix issue in Firefox (affected v19) where it didn't always reflow floats back over to the left
-			currentTallest += 1;
-			
-			if (!px && Number.prototype.pxToEm) {
-				currentTallest = currentTallest.pxToEm(); //use ems unless px is specified
-			}
-			
-			// for ie6, set height since min-height isn't supported
-			if ($.browser.msie && $.browser.version == 6.0) {
-				$children.css({'height': currentTallest});
-			}
-			
-			$children.css({'min-height': currentTallest}); 
-			
+			processRow($children);
 		}
 		
 		
@@ -152,9 +157,7 @@ $.fn.equalHeightsActive = function(o) {
 	doStuff = function() {
 		$this.equalHeights({childrenSelector: childrenSelector, perRow: perRow});
 	};
-	
-	doStuff();
-	
+		
 	timeoutID = setTimeout(doStuff, delay);
 	
 	$(window).on('resize', function() {
